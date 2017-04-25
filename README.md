@@ -13,5 +13,6 @@ Playing card library / engines written for the author's Haskell practice. Plan t
 ### Setup instructions ###
 
 * stack build
+* stack install might be necessary
 * stack exec -- <executable>
 

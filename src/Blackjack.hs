@@ -86,21 +86,43 @@ deal (d:ds) h = (ds, d:h)
 -- dealN n (d:ds) h = dealN (n-1) ds (d:h)
 
 --- at some point we could generalize this to include multiple players
-data Table = Table {deck :: Deck, dealerHand :: Hand, playerHand :: Hand}
+data Table = Table {deck :: Deck, dealerHand :: Hand, playerHand :: Hand, state :: TableState}
 -- instance Show Table where
---   show table = "Dealer: " ++ dcs
+--   show table = "Dealer: " ++ dcs ++ "\n"
+--                ++ 
 
 
 --- this data is likely an incomplete set of necessary states
 data TableState = PlayerTurn | DealerTurn
 
-printTable :: Table -> TableState -> IO ()
-printTable table state = do
+printTable :: Table -> IO ()
+printTable table = do
   putStrLn $ "Dealer: " ++ d
   putStrLn $ "Player: " ++ p
-  putStrLn $ "Deck: " ++ dk
-  where d = case state of
-          PlayerTurn -> [chr 127136] ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
+--  putStrLn $ "Deck: " ++ dk
+  putStrLn $ "Deck: " ++ bl ++ "  (" ++ show(length(theDeck)) ++ ")"
+  where d = case st of
+          PlayerTurn -> bl ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
           DealerTurn -> concat $ show <$> dealerHand table :: String
+        st = state table
         p =  concat $ show <$> playerHand table :: String
-        dk = concat $ show <$> deck table :: String
+        dk = concat $ show <$> theDeck :: String
+        bl = [chr 127136]
+        theDeck = deck table
+
+makeTable :: Deck -> Table
+makeTable (p1:d1:p2:d2:dr) = Table dr [d2,d1] [p2,p1] PlayerTurn
+
+dealPlayer :: Table -> Table
+-- dealPlayer Table (dh:ds) dl ph PlayerTurn = Table ds dl (dh:ph) PlayerTurn
+dealPlayer table = Table ds dl (dh:ph) PlayerTurn where
+  (dh:ds) = deck table
+  dl = dealerHand table
+  ph = playerHand table
+  
+
+dealDealer :: Table -> Table
+dealDealer table = Table ds (dh:dl) ph DealerTurn where
+  (dh:ds) = deck table
+  dl = dealerHand table
+  ph = playerHand table

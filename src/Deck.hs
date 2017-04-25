@@ -25,3 +25,8 @@ getShuffledDecks :: MonadRandom mr => Int -> mr Deck
 getShuffledDecks n = shuffleM . concat $ replicate n standardDeck
         
 -- to grab the deck, use evalRand (or evalRandIO for printing)
+
+-- Deck is just a synonym, so we can't declare a Show instance
+-- instance Show Deck where
+--   show (c:cs) = (show c) ++ show cs
+--   show []     = ""
