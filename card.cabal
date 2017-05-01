@@ -32,4 +32,3 @@ executable test
                      , card
                      , random-shuffle
                      , MonadRandom
-                     

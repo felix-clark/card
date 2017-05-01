@@ -91,15 +91,12 @@ data Table = Table {deck :: Deck, dealerHand :: Hand, playerHand :: Hand, state 
 --   show table = "Dealer: " ++ dcs ++ "\n"
 --                ++ 
 
-
---- this data is likely an incomplete set of necessary states
-data TableState = PlayerTurn | DealerTurn
+data TableState = PlayerTurn | DealerTurn | Done
 
 printTable :: Table -> IO ()
 printTable table = do
   putStrLn $ "Dealer: " ++ d
   putStrLn $ "Player: " ++ p
---  putStrLn $ "Deck: " ++ dk
   putStrLn $ "Deck: " ++ bl ++ "  (" ++ show(length(theDeck)) ++ ")"
   where d = case st of
           PlayerTurn -> bl ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
@@ -112,17 +109,28 @@ printTable table = do
 
 makeTable :: Deck -> Table
 makeTable (p1:d1:p2:d2:dr) = Table dr [d2,d1] [p2,p1] PlayerTurn
+makeTable _ = error "insufficient cards in deck to make table"
 
 dealPlayer :: Table -> Table
--- dealPlayer Table (dh:ds) dl ph PlayerTurn = Table ds dl (dh:ph) PlayerTurn
 dealPlayer table = Table ds dl (dh:ph) PlayerTurn where
   (dh:ds) = deck table
   dl = dealerHand table
-  ph = playerHand table
-  
+  ph = playerHand table  
 
 dealDealer :: Table -> Table
 dealDealer table = Table ds (dh:dl) ph DealerTurn where
   (dh:ds) = deck table
   dl = dealerHand table
   ph = playerHand table
+
+-- placeholder, not implemented yet
+-- will likely need player input on player's turn
+stepTable :: Table -> IO Table
+stepTable (Table (nc:tailDeck) oldDH pH DealerTurn) = return (Table tailDeck newDH pH newState) where
+  newDH = nc:oldDH
+  newState = if dealerStrategy newDH == Hit then DealerTurn else Done
+stepTable (Table oldDeck dH oldPH PlayerTurn) = return (Table newDeck dH newPH newState) where
+  newDeck = oldDeck
+  newPH = oldPH
+  newState = DealerTurn -- right now just have the player stand
+  
