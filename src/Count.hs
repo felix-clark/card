@@ -5,12 +5,13 @@ module Count where
 import Card
 import Blackjack
 
-deckCount :: (Card -> Int) -> [Card] -> Int
+-- Num: because the count needs to use (+)
+deckCount :: Num a => (Card -> a) -> [Card] -> a
 -- this should be implemented in terms of folds?
 deckCount countFunc deck = sum $ fmap countFunc deck
 
 -- the most basic counting system
-countHiLo :: Card -> Int
+countHiLo :: Num a => Card -> a
 countHiLo (Card rank _)
   | rank <= Six   =  1
   | rank >= Ten   = -1
@@ -29,17 +30,17 @@ countHiOpt2 (Card cr _)
   | cr `elem` [Two, Three, Six, Seven]   =  1
   | cr `elem` [Four, Five]               =  2
   | cr `elem` [Eight, Nine]              =  0
-  | otherwise                            = -2
+  | otherwise                            = -2   -- 10s and As
   
--- unbalanced, part of an easier system (running count only?)
-countKO :: Card -> Int
+-- Knockout system: unbalanced, easier since it uses running count only
+countKO :: Num a => Card -> a
 countKO (Card cr _)
   | cr <= Seven =  1
   | cr >= Ten   = -1
   | otherwise   =  0
 
 -- this one is fun because it depends on the color of the seven
-countRed7 :: Card -> Int
+countRed7 :: Num a => Card -> a
 countRed7 (Card cr cs)
   | cr == Seven   = if elem cs [Heart, Diamond] then 1 else 0
   | otherwise     = countHiLo (Card cr cs)

@@ -15,17 +15,20 @@ import Data.Char (chr)
 -- alias for readability
 type Hand = [Card]
 
+rankCount :: Rank -> Int
+rankCount Two    = 2
+rankCount Three  = 3
+rankCount Four   = 4
+rankCount Five   = 5
+rankCount Six    = 6
+rankCount Seven  = 7
+rankCount Eight  = 8
+rankCount Nine   = 9
+rankCount Ace    = 11
+rankCount _      = 10 -- the rest are face cards
+
 cardCount :: Card -> Int
-cardCount (Card Two   _) = 2
-cardCount (Card Three _) = 3
-cardCount (Card Four  _) = 4
-cardCount (Card Five  _) = 5
-cardCount (Card Six   _) = 6
-cardCount (Card Seven _) = 7
-cardCount (Card Eight _) = 8
-cardCount (Card Nine  _) = 9
-cardCount (Card Ace   _) = 11
-cardCount       _        = 10 -- the rest are face cards
+cardCount (Card cr   _) = rankCount cr
 
 -- returns the hard count, i.e. the count without including soft aces
 hardCount :: Hand -> Int
@@ -67,8 +70,13 @@ isSoft hand = (count hand) + 10*(numAces hand) - (hardCount hand) > 0
 
 --- define action type
 data Action =
-  Hit | Stand | Double | Split -- Insurance ? Surrender ?
-  deriving (Eq, Show)
+  Hit | Stand | Double | Split -- -- | Surrender -- | Insurance (never take)
+  deriving (Eq)
+instance Show Action where
+  show Hit    = "H"
+  show Stand  = "S"
+  show Double = "D"
+  show Split  = "P"
 
 --- determine Dealer's strategy (which is deterministic in Blackjack)
 dealerStrategy :: Hand -> Action
