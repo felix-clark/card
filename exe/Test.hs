@@ -1,3 +1,4 @@
+import Card
 import Deck
 import Blackjack
 import Strategy
@@ -11,5 +12,8 @@ main = do
 --  let theTable = Table evalDeck [] [] PlayerTurn
   let theTable = makeTable evalDeck
   printTable theTable
+  putStrLn ""
+  putStrLn $ (++) " BS: " . show . basicStrategy (rank . head $ dealerHand theTable) $ playerHand theTable
+  putStrLn ""
   printHardStrategy
 --  putStrLn deck

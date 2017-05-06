@@ -9,50 +9,88 @@ import Data.Foldable (traverse_)
 -- given dealer's shown card and player's hand, return decision from basic strategy
 --   for 4/6/8 decks, dealer hits soft 17 (H17), double after split allowed, no surrender
 basicStrategy :: Rank -> Hand -> Action
-basicStrategy dc ph = strat dc (count ph) where
-  strat
-    | canSplit ph   = pairStrategy
-    | isSoft ph     = softStrategy
-    | otherwise     = hardStrategy
+basicStrategy dc ph
+  | canSplit ph   = pairStrategy dc . rank $ head ph
+  | isSoft ph     = softStrategy dc $ count ph 
+  | otherwise     = hardStrategy dc $ count ph
+-- basicStrategy dc ph = strat dc (count ph) where
+--   strat
+--     | canSplit ph   = pairStrategy
+--     | isSoft ph     = softStrategy
+--     | otherwise     = hardStrategy
 
 -- return the strategy given a dealer's card and a player's count
 hardStrategy :: Rank -> Int -> Action
 hardStrategy drank pc
-     -- always stand hard 17
+  | pc == 11                     = Double
+  | pc == 10 && dc <= 9          = Double
+  | pc == 9  && dc `elem` [3..6] = Double
+  | otherwise                    = hardStrategyNoDD drank pc
+  where dc = rankCount drank
+
+-- hard strategy when no doubling is allowed
+hardStrategyNoDD :: Rank -> Int -> Action
+hardStrategyNoDD drank pc
   | pc >= 17    = Stand
-    -- have to hit on an 8 or lower
-  | pc <= 8     = Hit
-  | pc == 9     = if dc `elem` [3..6] then Double else Hit
-  | pc == 10    = if dc <= 9 then Double else Hit
-     -- always double on 11
-  | pc == 11    = Double
+  | pc <= 11     = Hit
   | pc == 12    = if dc `elem` [4..6] then Stand else Hit
   | otherwise   = if dc <= 6 then Stand else Hit     -- for pc in [13..16]
   where dc = rankCount drank
 
-softStrategy :: Rank -> Int -> Action
-softStrategy dcard pc
-   -- still gotta stand a 20 or greater
-  | pc >= 20    = Stand
- 
-pairStrategy :: Rank -> Int -> Action
-pairStrategy dcard pc
-  | pc `mod` 2 /= 0    = error "pair not divisible by 2"
-  | otherwise          = hardStrategy dcard pc
 
+softStrategy :: Rank -> Int -> Action
+softStrategy dr pc
+  | dr == Six  &&  pc `elem` [13..19] = Double
+  | dr == Five &&  pc `elem` [13..18] = Double
+  | dr == Four &&  pc `elem` [15..18] = Double
+  | dr == Three && pc `elem` [17,18]  = Double
+  | dr == Two  &&  pc == 18           = Double
+  | otherwise                         = softStrategyNoDD dr pc
+
+softStrategyNoDD :: Rank -> Int -> Action
+softStrategyNoDD drank pc
+  | pc <= 11    = error $ "you can't have a soft " ++ show pc
+  | pc <= 17    = Hit
+  | pc == 18    = if drank <= Eight then Stand else Hit
+  | otherwise   = Stand
+
+  
+pairStrategy :: Rank -> Rank -> Action
+pairStrategy dr pr
+  | pr == Five && dr <= Nine   = Double
+  | otherwise                  = pairStrategyNoDD dr pr
+
+pairStrategyNoDD :: Rank -> Rank -> Action
+pairStrategyNoDD dr pr
+  | pr == Ace          = Split
+  | pc == 10           = Stand
+  | pr == Nine         = if dc `elem` [7,10,11] then Stand else Split
+  | pr == Eight        = Split
+  | pc `elem` [2,3,7]  = if dc <= 7 then Split else Hit
+  | pc == 6            = if dc <= 6 then Split else Hit
+  | pc == 5            = Hit
+  | pc == 4            = if dc `elem` [5,6] then Split else Hit
+  | otherwise          = hardStrategy dr pc -- placeholder
+  where pc = rankCount pr
+        dc = rankCount dr
+
+
+showRank :: Rank -> String
+showRank r
+  | r `elem` [(Ten)..(King)]   = "T"
+  | otherwise                  = show r
+  
 
 printHardStrategy :: IO ()
 printHardStrategy = do
-  putStrLn " PH || 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | T | A "
-  let dealerUpRanks = [(Two)..(Ten)] ++ [Ace]
-  let playerCounts = [8..17]
-  -- print dealerUpRanks
-  -- print playerCounts
+   -- " PH || 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | T | A "
+  putStrLn . (++) " PH |" . concat $ pad . showRank <$> dealerUpRanks
   traverse_ printHardLine playerCounts
+  where
+    dealerUpRanks = [(Two)..(Ten)] ++ [Ace]
+    playerCounts = [8..17]
+    pad str = "| " ++ str ++ " "   -- pads the output character
 
-
--- printel :: String -> Action -> String
--- printel pref act = pref ++ "| " ++ (show act) ++ " "
 
 printHardLine :: Int -> IO ()
 printHardLine pc = do
@@ -63,8 +101,3 @@ printHardLine pc = do
   putStrLn strLine
   where printel pref act = pref ++ "| " ++ (show act) ++ " "  :: String
 
--- showRank :: Rank -> String
--- showRank r
---   | r `elem` [(Ten)..(King)]   = "T"
---   | otherwise                  = show r
-  

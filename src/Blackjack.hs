@@ -107,7 +107,8 @@ printTable table = do
   putStrLn $ "Player: " ++ p
   putStrLn $ "Deck: " ++ bl ++ "  (" ++ show(length(theDeck)) ++ ")"
   where d = case st of
-          PlayerTurn -> bl ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
+          -- PlayerTurn -> bl ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
+          PlayerTurn -> bl ++ " " ++ (show . head $ dealerHand table) :: String
           DealerTurn -> concat $ show <$> dealerHand table :: String
         st = state table
         p =  concat $ show <$> playerHand table :: String
