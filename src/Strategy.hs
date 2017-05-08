@@ -83,21 +83,46 @@ showRank r
 
 printHardStrategy :: IO ()
 printHardStrategy = do
-   -- " PH || 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | T | A "
-  putStrLn . (++) " PH |" . concat $ pad . showRank <$> dealerUpRanks
-  traverse_ printHardLine playerCounts
+  putStrLn . (++) "    |" . concat $ pad . showRank <$> dealerUpRanks
+  traverse_ (printHardSoftLine hardStrategy) playerCounts
   where
     dealerUpRanks = [(Two)..(Ten)] ++ [Ace]
     playerCounts = [8..17]
     pad str = "| " ++ str ++ " "   -- pads the output character
 
+printSoftStrategy :: IO ()
+printSoftStrategy = do
+  putStrLn . (++) "    |" . concat $ pad . showRank <$> dealerUpRanks
+  traverse_ (printHardSoftLine softStrategy) playerCounts
+  where
+    dealerUpRanks = [(Two)..(Ten)] ++ [Ace]
+    playerCounts = [13..20]
+    pad str = "| " ++ str ++ " "   -- pads the output character
 
-printHardLine :: Int -> IO ()
-printHardLine pc = do
+
+printHardSoftLine :: (Rank -> Int -> Action) -> Int -> IO ()
+printHardSoftLine strat pc = do
   let dealerUpRanks = [(Two)..(Ten)] ++ [Ace]                        :: [Rank]
-  let stratList = hardStrategy <$> dealerUpRanks <*> [pc]            :: [Action]
+  let stratList = strat <$> dealerUpRanks <*> [pc]                   :: [Action]
   let baseStr = (if pc >= 10 then " " else "  ") ++ show pc ++ " |"  :: String
   let strLine = foldl printel baseStr stratList
   putStrLn strLine
   where printel pref act = pref ++ "| " ++ (show act) ++ " "  :: String
 
+
+printPairStrategy :: IO ()
+printPairStrategy = do
+  putStrLn . (++) "    |" . concat $ pad . showRank <$> ranks
+  traverse_ printPairLine ranks
+  where
+    ranks = [(Two)..(Ten)] ++ [Ace]
+    pad str = "| " ++ str ++ " "   -- pads the output character
+
+printPairLine :: Rank -> IO ()
+printPairLine pc = do
+  let dealerUpRanks = [(Two)..(Ten)] ++ [Ace]                        :: [Rank]
+  let stratList = pairStrategy <$> dealerUpRanks <*> [pc]                   :: [Action]
+  let baseStr =  " " ++ showRank pc ++ showRank pc ++ " |"  :: String
+  let strLine = foldl printel baseStr stratList
+  putStrLn strLine
+  where printel pref act = pref ++ "| " ++ (show act) ++ " "  :: String

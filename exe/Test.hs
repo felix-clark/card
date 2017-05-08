@@ -14,6 +14,9 @@ main = do
   printTable theTable
   putStrLn ""
   putStrLn $ (++) " BS: " . show . basicStrategy (rank . head $ dealerHand theTable) $ playerHand theTable
-  putStrLn ""
+  putStrLn "\n Hard table:"
   printHardStrategy
---  putStrLn deck
+  putStrLn "\n Soft table:"
+  printSoftStrategy
+  putStrLn "\n Pair table:"
+  printPairStrategy
