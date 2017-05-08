@@ -19,7 +19,7 @@ library
                      , Deck
                      , Blackjack
                      , Strategy
-                     , DealerBust
+                     , DealerResult
                      , Count
                      , Dice
   default-language:    Haskell2010

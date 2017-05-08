@@ -7,10 +7,12 @@ import Control.Monad.Random (evalRandIO)
 main :: IO()
 main = do
   let hist = makeEmptyTrialHist                 :: TrialHist
-  evalDeck <- evalRandIO $ getShuffledDecks 8   :: IO [Card]
-  let (lastHist,_) = iter 64 hist evalDeck
+  let nDecks = 8
+  evalDeck <- evalRandIO $ getShuffledDecks nDecks   :: IO [Card]
+  let shoeResetPoint = nDecks * 13     -- casinos typically reset the shoe when there is 25% left
+  let (lastHist,_) = iter shoeResetPoint hist evalDeck
   printTrialHist lastHist
   where
-    iter n hres dres
-      | n <= 0    = (hres,dres)
-      | otherwise = uncurry (iter (n-1)) $ incTrialHistFromDeck hres dres
+    iter cut hres dres
+      | length dres < cut  = (hres,dres)
+      | otherwise             = uncurry (iter cut) $ incTrialHistFromDeck hres dres

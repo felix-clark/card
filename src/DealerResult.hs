@@ -1,10 +1,10 @@
 -- data structures for computing the dealer bust rate
 
-module DealerBust where
+module DealerResult where
 
 import Data.List (intercalate) -- don't need "find" anymore -- replaced w/ lookup
 import Data.Foldable (traverse_)
-import Data.Maybe (fromMaybe)
+-- import Data.Maybe (fromMaybe)
 
 -- histogram can be implemented with a dictionary
 import qualified Data.Map as M
@@ -45,8 +45,8 @@ makeEmptyTrialHist = M.fromList $ (,) <$> bjRanks <*> [results]
 
 printTrialHist :: TrialHist -> IO ()
 printTrialHist hist = do
-  let topLineList = (++) " " . intercalate " | " $ show <$> results
-  print topLineList
+  let topLineList = ("    " ++) . intercalate "  |  " $ show <$> results
+  putStrLn topLineList
   traverse_ printLine upCards -- equivalent to: sequence_ $ printLine <$> upCards
   -- putStrLn "\ndump: "
   -- print hist
@@ -54,14 +54,23 @@ printTrialHist hist = do
     upCards = [(Two)..(Ten)] ++ [Ace]
     results = [(Seventeen)..(Bust)]
     printLine upCard = do
-      putStrLn . (" " ++) . intercalate " | " . (:) (printUp upCard) $ show . getHistVal hist upCard <$> results
+      putStrLn . (" " ++) . intercalate "  |  " . (:) (printUp upCard) $ show . getHistValNorm hist upCard <$> results
     printUp upc
       | rankCount upc == 10   = "T"
       | otherwise             = show upc
 
 getHistVal :: TrialHist -> Rank -> Result ->  Integer
 getHistVal hist dup res = M.findWithDefault 0 res $ M.findWithDefault M.empty dup hist
-  
+
+getTotalForUpCard :: TrialHist -> Rank -> Integer
+getTotalForUpCard hist dup =
+  M.fold (+) 0 $ M.findWithDefault M.empty dup hist
+
+getHistValNorm :: Fractional a => TrialHist -> Rank -> Result -> a
+getHistValNorm hist dup res = num / den where
+  num = fromIntegral . M.findWithDefault 0 res $ dupList
+  den = fromIntegral . M.fold (+) 0 $ dupList
+  dupList = M.findWithDefault M.empty dup hist
 
 -- fill a trial with a rank,result
 --   this will likely be slower than saving a list of results,
@@ -76,9 +85,9 @@ incTrialHistFromDeck hist (upcard:deck) = (newHist, newDeck) where
   newHist = incTrialHist hist dr res
   dr = rank upcard
   res = resultFromHand finalHand
-  (finalHand, newDeck) = iterateDeck [upcard] deck
-  iterateDeck h dk = case dealerStrategy h of
-    Hit   -> iterateDeck ((head dk):h) (tail dk)
-    Stand -> (h, dk)
+  (finalHand, newDeck) = iterDeck [upcard] deck
+  iterDeck hand dk = case dealerStrategy hand of
+    Hit   -> iterDeck ((head dk):hand) (tail dk)
+    Stand -> (hand, dk)
       
   
