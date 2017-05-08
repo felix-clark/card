@@ -77,6 +77,7 @@ instance Show Action where
   show Stand  = "S"
   show Double = "D"
   show Split  = "P"
+  -- show Surrender = "R"
 
 --- determine Dealer's strategy (which is deterministic in Blackjack)
 dealerStrategy :: Hand -> Action
@@ -95,10 +96,6 @@ deal (d:ds) h = (ds, d:h)
 
 --- at some point we could generalize this to include multiple players
 data Table = Table {deck :: Deck, dealerHand :: Hand, playerHand :: Hand, state :: TableState}
--- instance Show Table where
---   show table = "Dealer: " ++ dcs ++ "\n"
---                ++ 
-
 data TableState = PlayerTurn | DealerTurn | Done
 
 printTable :: Table -> IO ()

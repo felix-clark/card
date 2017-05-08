@@ -10,7 +10,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Map as M
 
 import Card
--- import Deck
+import Deck
 import Blackjack
 
 
@@ -24,10 +24,21 @@ instance Show Result where
   show TwentyOne = "21"
   show Bust      = "Bust"
 
+resultFromHand :: Hand -> Result
+resultFromHand hand
+  | c > 21    = Bust
+  | c == 21   = TwentyOne
+  | c == 20   = Twenty
+  | c == 19   = Nineteen
+  | c == 18   = Eighteen
+  | c == 17   = Seventeen
+  | otherwise = error "dealer must end with at least 17"
+  where c = count hand
+
 type TrialHist = M.Map Rank (M.Map Result Integer)
 
-makeEmptyTrial :: TrialHist
-makeEmptyTrial = M.fromList $ (,) <$> bjRanks <*> [results]
+makeEmptyTrialHist :: TrialHist
+makeEmptyTrialHist = M.fromList $ (,) <$> bjRanks <*> [results]
   where
     bjRanks = [(Two)..(Ten)] ++ [Ace]                :: [Rank]
     results = M.fromList $ (,) <$> [(Seventeen)..(Bust)] <*> [0]  :: M.Map Result Integer
@@ -58,3 +69,16 @@ getHistVal hist dup res = M.findWithDefault 0 res $ M.findWithDefault M.empty du
 incTrialHist :: TrialHist -> Rank -> Result -> TrialHist
 incTrialHist hist dup res = M.adjust resMapInc dup hist
   where resMapInc = M.adjust succ res
+
+
+incTrialHistFromDeck :: TrialHist -> Deck -> (TrialHist, Deck)
+incTrialHistFromDeck hist (upcard:deck) = (newHist, newDeck) where
+  newHist = incTrialHist hist dr res
+  dr = rank upcard
+  res = resultFromHand finalHand
+  (finalHand, newDeck) = iterateDeck [upcard] deck
+  iterateDeck h dk = case dealerStrategy h of
+    Hit   -> iterateDeck ((head dk):h) (tail dk)
+    Stand -> (h, dk)
+      
+  
