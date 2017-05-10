@@ -55,7 +55,7 @@ choose n k
   | k == 0     = 1
   | k == n     = 1
   | k > (n `div` 2)  = choose n (n-k)
-  | otherwise  = (n - k + 1) * (choose n (k-1)) `div` k
+  | otherwise  = fromIntegral(n - k + 1) * (choose n (k-1)) `div` (fromIntegral k)
 
 -- -- takes first N cards that satisfy a function in a (shuffled) deck
 -- -- and return them with the part of the deck leftover
@@ -64,15 +64,36 @@ choose n k
 -- -- partition p xs == (filter p xs, filter (not . p) xs)
 
 -- lists all possible counts the particular count type can result in for this deck
--- TODO: make version that saves possible counts, along with number of cards providing that count
 possibleCounts :: (Ord a, Num a) => (Card -> a) -> [Card] -> [a]
 possibleCounts countFunc deck = possCounts where
   possCounts = sort . nub $ countFunc <$> deck
 
--- possibleCountsWithNum :: (Ord a, Num a) => (Card -> a) -> [Card] -> [(a,Int)]
--- possibleCountsWithNum countFunc deck = res where
---   possCounts = possibleCounts countFunc deck
---   res = zip possCounts lengths
--- --  eqFuncs = (==) <$> possCounts  --  :: (Ord a, Num a) => [a -> Bool]
---   eqFuncs = filter . (==) <$> possCounts  --  :: (Ord a, Num a) => [a -> Int]
---   lengths =  eqFuncs <*> pure deck
+-- this version saves possible counts, along with number of cards providing that count
+possibleCountsWithMax :: (Ord a, Num a) => (Card -> a) -> [Card] -> [(a,Int)]
+possibleCountsWithMax countFunc deck = zip possCounts countsList where
+  deckCounts = countFunc <$> deck
+  possCounts = sort $ nub deckCounts
+  fList = numCountsInDeck <$> possCounts --  :: (Ord a, Num a) => [a -> Int]
+  numCountsInDeck ct dk = length $ filter (== ct) dk 
+  countsList = sequence fList deckCounts
+
+-- return possible sets of numbers of each class of card counts, given a total number of cards and a deck count
+possibleCountSetsWithWeights :: (Eq a, Num a, Fractional b) => Int -> a -> [(a,Int)] -> [(b,[Int])] -- return list of possible quantities of each card class
+-- so if the possible counts are [-1,0,1] it will return e.g. ([[3,4,2],...[Nm,Nz,Np]...] where [Nm,Nz,Np] satisty Nm + Nz + Np = nCards and Np - Nm - nCount
+-- will need to keep track of counts and max separately, so they are not returned here
+possibleCountSetsWithWeights nCards nCount countWithMaxList = result where
+  countList    = fst <$> countWithMaxList      -- :: [a]
+  countMaxList = snd <$> countWithMaxList                                          :: [Int]
+  -- list of length (length possCounts) where each element is a list from 0 to the max allowed for the corresponding count
+  countSpread = enumFromTo 0 <$> countMaxList                                       :: [[Int]]
+  -- list of lists of length (length possCounts) where [0,3,4] refers to 0 cards of 1st count, 3 cards of 2nd count, etc.
+  possResNoConstraint = sequence countSpread                                        :: [[Int]]
+  countNumSets = filter countCheckFunc $ filter numCheckFunc possResNoConstraint    :: [[Int]]
+  numCheckFunc   = (nCards ==) . sum                                                :: [Int] -> Bool
+  countCheckFunc = (nCount ==) . sum . zipWith (*) countList . map fromIntegral     :: [Int] -> Bool
+  result = weightFunc countMaxList <$> countNumSets
+  weightFunc :: (Fractional b) => [Int] -> [Int] -> (b, [Int]) -- takes list of max counts, possible set of count numbers, and returns weight with the number of counts
+  weightFunc ctMaxes numsOfCts = (product $ zipWith wfHelp ctMaxes numsOfCts, numsOfCts)
+  wfHelp :: (Fractional b) => Int -> Int -> b
+  -- we need to weight each choice of count numbers by the product of (nMax choose n) for each count possibility
+  wfHelp maxCountNum countNum = recip . fromInteger $ choose (fromIntegral maxCountNum) (fromIntegral countNum)
