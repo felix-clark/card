@@ -4,7 +4,7 @@ module Count where
 
 import Card
 import Blackjack
-import Data.List (nub)
+import Data.List (sort, nub)
 
 -- Num: because the count needs to use (+)
 deckCount :: Num a => (Card -> a) -> [Card] -> a
@@ -65,6 +65,14 @@ choose n k
 
 -- lists all possible counts the particular count type can result in for this deck
 -- TODO: make version that saves possible counts, along with number of cards providing that count
-possibleCounts :: (Eq a, Num a) => (Card -> a) -> [Card] -> [a]
+possibleCounts :: (Ord a, Num a) => (Card -> a) -> [Card] -> [a]
 possibleCounts countFunc deck = possCounts where
-  possCounts = nub $ countFunc <$> deck
+  possCounts = sort . nub $ countFunc <$> deck
+
+-- possibleCountsWithNum :: (Ord a, Num a) => (Card -> a) -> [Card] -> [(a,Int)]
+-- possibleCountsWithNum countFunc deck = res where
+--   possCounts = possibleCounts countFunc deck
+--   res = zip possCounts lengths
+-- --  eqFuncs = (==) <$> possCounts  --  :: (Ord a, Num a) => [a -> Bool]
+--   eqFuncs = filter . (==) <$> possCounts  --  :: (Ord a, Num a) => [a -> Int]
+--   lengths =  eqFuncs <*> pure deck
