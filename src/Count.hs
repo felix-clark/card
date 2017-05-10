@@ -4,6 +4,7 @@ module Count where
 
 import Card
 import Blackjack
+import Data.List (nub)
 
 -- Num: because the count needs to use (+)
 deckCount :: Num a => (Card -> a) -> [Card] -> a
@@ -44,3 +45,26 @@ countRed7 :: Num a => Card -> a
 countRed7 (Card cr cs)
   | cr == Seven   = if elem cs [Heart, Diamond] then 1 else 0
   | otherwise     = countHiLo (Card cr cs)
+
+
+-- with Int, has severe underflow for e.g. 400 `choose` 200
+choose :: Integer -> Integer -> Integer
+choose n k
+  | k < 0      = 0
+  | k > n      = 0
+  | k == 0     = 1
+  | k == n     = 1
+  | k > (n `div` 2)  = choose n (n-k)
+  | otherwise  = (n - k + 1) * (choose n (k-1)) `div` k
+
+-- -- takes first N cards that satisfy a function in a (shuffled) deck
+-- -- and return them with the part of the deck leftover
+-- takeFirstNThat :: Int -> (Card -> Bool) -> [Deck] -> [Deck]
+-- takeFirstNThat n f deck =
+-- -- partition p xs == (filter p xs, filter (not . p) xs)
+
+-- lists all possible counts the particular count type can result in for this deck
+-- TODO: make version that saves possible counts, along with number of cards providing that count
+possibleCounts :: (Eq a, Num a) => (Card -> a) -> [Card] -> [a]
+possibleCounts countFunc deck = possCounts where
+  possCounts = nub $ countFunc <$> deck

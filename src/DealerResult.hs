@@ -7,6 +7,8 @@ import Data.Foldable (traverse_)
 -- import Data.Maybe (fromMaybe)
 import Numeric (showFFloat)
 
+import Control.Monad
+
 -- histogram can be implemented with a dictionary
 import qualified Data.Map as M
 
@@ -15,7 +17,7 @@ import Deck
 import Blackjack
 
 
-data Result = Seventeen | Eighteen | Nineteen | Twenty | TwentyOne | Bust
+data Result = Seventeen | Eighteen | Nineteen | Twenty | TwentyOne | Natural | Bust
   deriving (Eq,Enum,Ord)
 instance Show Result where
   show Seventeen = " 17 "
@@ -23,10 +25,12 @@ instance Show Result where
   show Nineteen  = " 19 "
   show Twenty    = " 20 "
   show TwentyOne = " 21 "
+  show Natural   = " BJ "
   show Bust      = "Bust"
 
 resultFromHand :: Hand -> Result
 resultFromHand hand
+  | isBj      = Natural
   | c > 21    = Bust
   | c == 21   = TwentyOne
   | c == 20   = Twenty
@@ -34,16 +38,20 @@ resultFromHand hand
   | c == 18   = Eighteen
   | c == 17   = Seventeen
   | otherwise = error "dealer must end with at least 17"
-  where c = count hand
+  where
+    isBj = isBlackjack hand
+    c = count hand
 
 type TrialHist = M.Map Rank (M.Map Result Integer)
 
 emptyTrialHist :: TrialHist
 -- emptyTrialHist = M.fromList $ (,) <$> bjRanks <*> [results]
-emptyTrialHist = M.fromList $ ( flip (,) results) <$> bjRanks
+-- emptyTrialHist = M.fromList $ ( flip (,) results) <$> bjRanks
+emptyTrialHist = M.fromList $ forM bjRanks (,) results
   where
     bjRanks = [(Two)..(Ten)] ++ [Ace]                :: [Rank]
-    results = M.fromList $ (,) <$> [(Seventeen)..(Bust)] <*> [0]  :: M.Map Result Integer
+    dres    = [(Seventeen)..(TwentyOne)] ++ [Bust]   :: [Result] -- don't include natural blackjack, since dealer should check
+    results = M.fromList $ forM dres (,) 0           :: M.Map Result Integer
 
 printTrialHist :: TrialHist -> IO ()
 printTrialHist hist = do
@@ -52,7 +60,7 @@ printTrialHist hist = do
   traverse_ printLine upCards -- equivalent to: sequence_ $ printLine <$> upCards
   where
     upCards = [(Two)..(Ten)] ++ [Ace]
-    results = [(Seventeen)..(Bust)]
+    results = [(Seventeen)..(TwentyOne)] ++ [(Bust)] -- leaving out natural blackjack, assuming dealer checks
     printLine upCard = do
       putStrLn . (" " ++) . intercalate " | " . (:) (printUp upCard) $ prnum . getHistValNorm hist upCard <$> results
     printUp upc

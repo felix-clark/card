@@ -23,5 +23,5 @@ fillHistWithShoe nDecks hist = do
 
 main :: IO ()
 main = do
-  hist <- doNLoops 4096 fillHistWithShoe 8 emptyTrialHist   :: IO TrialHist
+  hist <- doNLoops 2048 fillHistWithShoe 8 emptyTrialHist   :: IO TrialHist
   printTrialHist hist
