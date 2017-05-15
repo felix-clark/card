@@ -58,17 +58,22 @@ printTrialHist hist = do
   let topLineList = (" % | " ++) . intercalate " | " $ show <$> results
   putStrLn topLineList
   traverse_ printLine upCards -- equivalent to: sequence_ $ printLine <$> upCards
+  printSumLine
   where
     upCards = [(Two)..(Ten)] ++ [Ace]
-    results = [(Seventeen)..(TwentyOne)] ++ [(Bust)] -- leaving out natural blackjack, assuming dealer checks
+    -- leave out natural blackjack, assuming dealer checks:
+    results = [(Seventeen)..(TwentyOne)] ++ [(Bust)]
     printLine upCard = do
       putStrLn . (" " ++) . intercalate " | " . (:) (printUp upCard) $ prnum . getHistValNorm hist upCard <$> results
-    printUp upc
-      | rankCount upc == 10   = "T"
-      | otherwise             = show upc
+      where
+        printUp upc
+          | rankCount upc == 10   = "T"
+          | otherwise             = show upc
+    printSumLine = do
+      putStrLn . (" * | " ++ ) . intercalate " | " $ prnum . getHistValAllUpNorm hist <$> results
     prnum val = (++) (if val < 0.1 then " " else "") $ showFFloat (Just 1) (100*val) "" -- 1 decimal after percent (permil)
 
-getHistVal :: TrialHist -> Rank -> Result ->  Integer
+getHistVal :: TrialHist -> Rank -> Result -> Integer
 getHistVal hist dup res = M.findWithDefault 0 res $ M.findWithDefault M.empty dup hist
 
 getTotalForUpCard :: TrialHist -> Rank -> Integer
@@ -80,6 +85,18 @@ getHistValNorm hist dup res = num / den where
   num = fromIntegral . M.findWithDefault 0 res $ dupList
   den = fromIntegral . M.fold (+) 0 $ dupList
   dupList = M.findWithDefault M.empty dup hist
+
+getHistValAllUp :: TrialHist -> Result -> Integer
+getHistValAllUp hist res = sum $ (\uc -> getHistVal hist uc res) <$> upCards
+  where
+    upCards = [(Two)..(Ten)] ++ [Ace]
+
+getHistValAllUpNorm :: Fractional a => TrialHist -> Result -> a
+getHistValAllUpNorm hist res = num / den where
+  num = fromIntegral $ getHistValAllUp hist res
+  den = fromIntegral . sum $ getHistValAllUp hist <$> allRes
+  allRes = [(Seventeen)..(TwentyOne)] ++ [(Bust)]
+
 
 -- fill a trial with a rank,result
 --   this will likely be slower than saving a list of results,
