@@ -70,14 +70,14 @@ isSoft hand = (count hand) + 10*(numAces hand) - (hardCount hand) > 0
 
 --- define action type
 data Action =
-  Hit | Stand | Double | Split -- -- | Surrender -- | Insurance (never take)
+  Hit | Stand | Double | Split | Surrender --- | Insurance -- (only take w/ high counts, and it's a side bet)
   deriving (Eq)
 instance Show Action where
   show Hit    = "H"
   show Stand  = "S"
   show Double = "D"
   show Split  = "P"
-  -- show Surrender = "R"
+  show Surrender = "R"
 
 --- determine Dealer's strategy (which is deterministic in Blackjack)
 dealerStrategy :: Hand -> Action

@@ -25,7 +25,7 @@ type CtSetT = [Int]
 -- Num: because the count needs to use (+)
 deckCount :: CtT a => (Card -> a) -> [Card] -> a
 -- this should be implemented in terms of folds?
-deckCount countFunc deck = sum $ fmap countFunc deck
+deckCount countFunc deck = sum $ map countFunc deck
 
 -- the most basic counting system
 countHiLo :: Card -> Int
@@ -50,11 +50,31 @@ countHiOpt2 (Card cr _)
   | otherwise                            = -2   -- 10s and As
   
 -- Knockout system: unbalanced, easier since it uses running count only
+-- also used for reKO system
 countKO :: Card -> Int
 countKO (Card cr _)
   | cr <= Seven =  1
   | cr >= Ten   = -1
   | otherwise   =  0
+
+-- initial running count for reKO counting system
+-- not quite the same as the IRC for KO systems
+ircREKO :: Int -> Int
+ircREKO 1 = -1
+ircREKO 2 = -5
+ircREKO 4 = -12
+ircREKO 5 = -16 --- inferred
+ircREKO 6 = -20
+ircREKO 8 = -27
+ircREKO _ = error "unimplemented starting count for REKO"
+
+countFELT :: Int -> Int
+countFELT (Card cr _)
+  | cr `elem` [Two,Seven]       =  1
+  | cr `elem` [(Three)..(Six)]  =  2
+  | cr `elem` [Eight,Nine]      =  0
+  | cr `elem` [(Ten)..(Ace)]    = -2
+  | otherwise  = error "should not get to here"
 
 countOmega2 :: Card -> Int
 countOmega2 card
@@ -220,7 +240,8 @@ probCCondN countFunc deck n c = result where
       wFunc = weightFunc ctMaxes                  :: CtSetT -> Rational -- divides by Nmax choose N
   result = foldr foldFunc 0 possCtSetsWithNC           :: Rational  -- L(C|N)
 
-
+-- could make this slightly faster by using a weight function w/out dividing by Nmax choose N until the end
+--  that should only speed up by 25% or so
 -- probCCondN_fast :: CtT a => (Card -> a) -> [Card] -> Int -> a -> Double
 -- probCCondN_fast countFunc deck n c = result where
 --   possCtsMax = possCountsWithMax countFunc deck   -- :: [(a,Int)]
@@ -231,7 +252,7 @@ probCCondN countFunc deck n c = result where
 --   possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
 --   foldFunc = (+) . wFunc                                  :: CtSetT -> Double -> Double
 --     where
---       wFunc = weightFun_cstirling ctMaxes                 :: CtSetT -> Double
+--       wFunc = weightFunc_stirling ctMaxes                 :: CtSetT -> Double
 --   likeCAndN = foldr foldFunc 0 possCtSetsWithNC           :: Double -- L(C|N)
 --   -- likeN  = foldr foldFunc 0 possCtSetsWithN               :: Double -- sum_N L(C|N)
 --   likeN  = choose_stirling (fromIntegral $ length deck) (fromIntegral n)    :: Double -- sum_N L(C|N)
@@ -338,7 +359,7 @@ getDecksWithCount nShoes deck countFunc pCount = do
   --- need to call this once and then generate decks forever
   let (possCts,weightedCountSets) = possCountSetsWithWeights countFunc dCount deck -- ([a],[(CtSetT,Rational)])
   let reweightedCountSets = convolveWithPN weightedCountSets :: [(CtSetT,Rational)]
-  putStrLn "Computing weighted count sets..."
+  -- putStrLn "Computing weighted count sets..."
   replicateM nShoes $ drawDeck deck countFunc possCts reweightedCountSets --  :: IO [Card]
     where
       convolveWithPN    :: [(CtSetT,Rational)] -> [(CtSetT,Rational)]
@@ -348,6 +369,6 @@ getDecksWithCount nShoes deck countFunc pCount = do
         | otherwise = convolveWithPN xs
           where newp = probN deck (sum ctSet) * p
       drawDeck deck countFunc possCts reweightedCountSets = do
-        putStrLn "Getting deck with count set..."
+        -- putStrLn "Getting deck with count set..."
         countSet <- fromList reweightedCountSets                   :: IO CtSetT
         getDeckWithCountSet countFunc possCts countSet deck        :: IO [Card]
