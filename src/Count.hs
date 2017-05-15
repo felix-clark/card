@@ -68,7 +68,7 @@ ircREKO 6 = -20
 ircREKO 8 = -27
 ircREKO _ = error "unimplemented starting count for REKO"
 
-countFELT :: Int -> Int
+countFELT :: Card -> Int
 countFELT (Card cr _)
   | cr `elem` [Two,Seven]       =  1
   | cr `elem` [(Three)..(Six)]  =  2
