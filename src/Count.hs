@@ -10,7 +10,7 @@ import Data.List (sort, nub, partition)
 import Data.Ratio
 import Control.Monad.Random
 import System.Random.Shuffle
-import Math.Gamma -- for faster n choose k at large n, k
+-- import Math.Gamma -- for faster n choose k at large n, k
 
 class (Num a, Ord a) => CtT a
 instance CtT Int -- could also have fractional counts (some systems use 0.5), but Int should cover most cases
@@ -88,19 +88,19 @@ choose n k
   | 2*k > n    = choose n (n-k)
   | otherwise  = (n - k + 1) * (choose n (k-1)) `div` k
 
-choose_logGamma :: Gamma a => Integer -> Integer -> a
-choose_logGamma n k = exp $ (lnFactorial n) - (lnFactorial k) - (lnFactorial (n-k))
+-- choose_logGamma :: Gamma a => Integer -> Integer -> a
+-- choose_logGamma n k = exp $ (lnFactorial n) - (lnFactorial k) - (lnFactorial (n-k))
 
--- a variant of the choose function that uses Stirling's approximation
-choose_stirling :: (Eq a, Floating a) => a -> a -> a
-choose_stirling n k
-  | k == 0    = 0
-  | k == n    = 0
-  | otherwise = (exp $ nTerm - kTerm - nmkTerm) / (sqrt $ 2*pi) where
-      nTerm   = fstir n
-      kTerm   = fstir k
-      nmkTerm = fstir $ n - k
-      fstir x = (x + 0.5) * (log x) -- the order x term of stirling's approximation cancels
+-- -- a variant of the choose function that uses Stirling's approximation
+-- choose_stirling :: (Eq a, Floating a) => a -> a -> a
+-- choose_stirling n k
+--   | k == 0    = 0
+--   | k == n    = 0
+--   | otherwise = (exp $ nTerm - kTerm - nmkTerm) / (sqrt $ 2*pi) where
+--       nTerm   = fstir n
+--       kTerm   = fstir k
+--       nmkTerm = fstir $ n - k
+--       fstir x = (x + 0.5) * (log x) -- the order x term of stirling's approximation cancels
 
 -- lists all possible counts the particular count type can result in for this deck
 -- possibly not usefull 
@@ -134,59 +134,65 @@ possCountSetsFromMax countMaxList = possResNoConstraint where
 countResult :: CtT a => [a] -> CtSetT -> a
 countResult possCounts numCounts = sum . zipWith (*) possCounts $ map fromIntegral numCounts
 
+-- -- return possible sets of numbers of each class of card counts, given a total number of cards and a deck count
+-- possCountSetsFromCountsWithMax :: CtT a => Int -> a -> [(a,Int)] -> [CtSetT] -- return list of possible quantities of each card class
+-- -- so if the possible counts are [-1,0,1] it will return e.g. ([[3,4,2],...[Nm,Nz,Np]...] where [Nm,Nz,Np] satisty Nm + Nz + Np = nCards and Np - Nm - nCount
+-- -- will need to keep track of counts and max separately, so they are not returned here
+-- possCountSetsFromCountsWithMax nCards nCount countWithMaxList = countNumSets where
+--   (countList,countMaxList) = unzip countWithMaxList                              -- :: ([a],[Int])
+--   possResNoConstraint = possCountSetsFromMax countMaxList                           :: [CtSetT]
+--   countNumSets = filter countCheckFunc $ filter numCheckFunc possResNoConstraint    :: [CtSetT]
+--     where
+--       numCheckFunc   = (nCards ==) . sum                                            :: [Int] -> Bool
+--       countCheckFunc = (nCount ==) . (countResult countList)                        :: [Int] -> Bool
+
 -- return possible sets of numbers of each class of card counts, given a total number of cards and a deck count
-possCountSetsFromCountsWithMax :: CtT a => Int -> a -> [(a,Int)] -> [CtSetT] -- return list of possible quantities of each card class
+possCountSetsFromCountsWithMax :: CtT a => a -> [(a,Int)] -> [CtSetT] -- return list of possible quantities of each card class
 -- so if the possible counts are [-1,0,1] it will return e.g. ([[3,4,2],...[Nm,Nz,Np]...] where [Nm,Nz,Np] satisty Nm + Nz + Np = nCards and Np - Nm - nCount
 -- will need to keep track of counts and max separately, so they are not returned here
-possCountSetsFromCountsWithMax nCards nCount countWithMaxList = countNumSets where
-  (countList,countMaxList) = unzip countWithMaxList                              -- :: ([a],[Int])
-  possResNoConstraint = possCountSetsFromMax countMaxList                           :: [CtSetT]
-  countNumSets = filter countCheckFunc $ filter numCheckFunc possResNoConstraint    :: [CtSetT]
+possCountSetsFromCountsWithMax nCount countWithMaxList = countNumSets where
+  (countList,countMaxList) = unzip countWithMaxList             -- :: ([a],[Int])
+  possResNoConstraint = possCountSetsFromMax countMaxList       :: [CtSetT]
+  countNumSets = filter countCheckFunc possResNoConstraint      :: [CtSetT]
     where
-      numCheckFunc   = (nCards ==) . sum                                            :: [Int] -> Bool
-      countCheckFunc = (nCount ==) . (countResult countList)                        :: [Int] -> Bool
-
--- decoratePre :: (a -> b) -> [a] -> [(b,a)]
--- decoratePre func (x:xs) = (func x, x):(decoratePre func xs)
--- decoratePre _ [] = []
+      countCheckFunc = (nCount ==) . (countResult countList)    :: [Int] -> Bool
 
 decorate :: (a -> b) -> [a] -> [(a,b)]
 decorate func (x:xs) = (x, func x):(decorate func xs)
 decorate _ [] = []
 
--- takes list of max counts, possible set of count numbers, and returns weight with the number of counts
-weightFunc :: [Int] -> CtSetT -> Integer
-weightFunc ctMaxes numsOfCts = product $ zipWith wfHelp ctMaxes numsOfCts
+-- this weight function is [((N+max) choose N+) * ((N-max) choose N-) * ...] / (Nmax choose N)
+weightFunc :: [Int] -> CtSetT -> Rational
+weightFunc ctMaxes numsOfCts = (product $ zipWith wfHelp ctMaxes numsOfCts) % nMaxChooseN
   where
     wfHelp :: Int -> Int -> Integer
       -- we need to weight each choice of count numbers by the product of (nMax choose n) for each count possibility
     wfHelp maxCountNum countNum = choose (fromIntegral maxCountNum) (fromIntegral countNum)
-
-weightFunc_stirling :: [Int] -> CtSetT -> Double
-weightFunc_stirling ctMaxes numsOfCts = product $ zipWith wfHelp ctMaxes numsOfCts
-  where
-    wfHelp :: Int -> Int -> Double
-      -- we need to weight each choice of count numbers by the product of (nMax choose n) for each count possibility
-    wfHelp maxCountNum countNum = choose_stirling (fromIntegral maxCountNum) (fromIntegral countNum)
+    nMaxChooseN = choose (fromIntegral $ sum ctMaxes) (fromIntegral $ sum numsOfCts)
 
 
--- given list of maximum numbers of each count, and a list of possible sets of counts, provide a list of possible sets of counts with their weights (determined 
-possCountSetsWithWeightsFromMaxAndSets :: [Int] -> [CtSetT] -> [(CtSetT,Rational)]
-possCountSetsWithWeightsFromMaxAndSets maxCounts setsOfCounts = decorate (fromIntegral . weightFunc maxCounts) setsOfCounts
+-- weightFunc_stirling :: [Int] -> CtSetT -> Double
+-- weightFunc_stirling ctMaxes numsOfCts = product $ zipWith wfHelp ctMaxes numsOfCts
+--   where
+--     wfHelp :: Int -> Int -> Double
+--       -- we need to weight each choice of count numbers by the product of (nMax choose n) for each count possibility
+--     wfHelp maxCountNum countNum = choose_stirling (fromIntegral maxCountNum) (fromIntegral countNum)
 
--- takes a counting function, number of cards, intended count, and deck,
+
+-- takes a counting function, intended count, and deck,
 -- returning both the set of possible card counts and a list of sets of numbers of cards w/ each count, along with the weights for each set of possibilities
-possCountSetsWithWeights :: CtT a => (Card -> a) -> Int -> a -> [Card] -> ([a],[(CtSetT,Rational)])
-possCountSetsWithWeights countFunc nCards nCount deck = result where
+possCountSetsWithWeights :: CtT a => (Card -> a) -> a -> [Card] -> ([a],[(CtSetT,Rational)])
+possCountSetsWithWeights countFunc nCount deck = result where
   countsWithMax = possCountsWithMax countFunc deck
   (possCounts, maxCounts) = unzip countsWithMax
-  setsOfCounts = possCountSetsFromCountsWithMax nCards nCount countsWithMax
-  countSetsW = possCountSetsWithWeightsFromMaxAndSets maxCounts setsOfCounts
+  setsOfCounts = possCountSetsFromCountsWithMax nCount countsWithMax
+  countSetsW = decorate (weightFunc maxCounts) setsOfCounts
   result = (possCounts, countSetsW)
 
 
 -- the probability of having a deck w/ length N is effectively set by the casino.
 -- most casinos kick the shoe when it's down to 25% of its maximum length
+--  could consider "softening" the transition
 probN :: [Card] -> Int -> Rational
 probN deck n = (normFact *) . fromIntegral $ likeF n where
   normFact = (%) 1 $ fromIntegral . sum $ map likeF [1..dkSz]
@@ -209,27 +215,27 @@ probCCondN countFunc deck n c = result where
     where
       possCtSetsUnfiltered = possCountSetsFromMax ctMaxes
   possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
-  foldFunc = (+) . wFunc                                  :: CtSetT -> Integer -> Integer
+  foldFunc = (+) . wFunc                               :: CtSetT -> Rational -> Rational
     where
-      wFunc = weightFunc ctMaxes                          :: CtSetT -> Integer
-  likeCAndN = foldr foldFunc 0 possCtSetsWithNC           :: Integer -- L(C|N)
-  likeN  = foldr foldFunc 0 possCtSetsWithN               :: Integer -- sum_N L(C|N)
-  result = (fromInteger likeCAndN) % (fromInteger likeN)  :: Rational
+      wFunc = weightFunc ctMaxes                  :: CtSetT -> Rational -- divides by Nmax choose N
+  result = foldr foldFunc 0 possCtSetsWithNC           :: Rational  -- L(C|N)
 
-probCCondN_fast :: CtT a => (Card -> a) -> [Card] -> Int -> a -> Double
-probCCondN_fast countFunc deck n c = result where
-  possCtsMax = possCountsWithMax countFunc deck   -- :: [(a,Int)]
-  (possCts,ctMaxes) = unzip possCtsMax
-  possCtSetsWithN = filter ((n ==) . sum) possCtSetsUnfiltered :: [CtSetT]
-    where
-      possCtSetsUnfiltered = possCountSetsFromMax ctMaxes
-  possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
-  foldFunc = (+) . wFunc                                  :: CtSetT -> Double -> Double
-    where
-      wFunc = weightFunc_stirling ctMaxes                 :: CtSetT -> Double
-  likeCAndN = foldr foldFunc 0 possCtSetsWithNC           :: Double -- L(C|N)
-  likeN  = foldr foldFunc 0 possCtSetsWithN               :: Double -- sum_N L(C|N)
-  result = likeCAndN / likeN                              :: Double
+
+-- probCCondN_fast :: CtT a => (Card -> a) -> [Card] -> Int -> a -> Double
+-- probCCondN_fast countFunc deck n c = result where
+--   possCtsMax = possCountsWithMax countFunc deck   -- :: [(a,Int)]
+--   (possCts,ctMaxes) = unzip possCtsMax
+--   possCtSetsWithN = filter ((n ==) . sum) possCtSetsUnfiltered :: [CtSetT]
+--     where
+--       possCtSetsUnfiltered = possCountSetsFromMax ctMaxes
+--   possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
+--   foldFunc = (+) . wFunc                                  :: CtSetT -> Double -> Double
+--     where
+--       wFunc = weightFun_cstirling ctMaxes                 :: CtSetT -> Double
+--   likeCAndN = foldr foldFunc 0 possCtSetsWithNC           :: Double -- L(C|N)
+--   -- likeN  = foldr foldFunc 0 possCtSetsWithN               :: Double -- sum_N L(C|N)
+--   likeN  = choose_stirling (fromIntegral $ length deck) (fromIntegral n)    :: Double -- sum_N L(C|N)
+--   result = likeCAndN / likeN                              :: Double
 
 
 -- probability of C, given P(N)
@@ -251,31 +257,6 @@ probNCondC countFunc deck c n = pC_N * p_N / p_C where
   p_N  = probN deck n
   pC_N = probCCondN countFunc deck n c
   p_C  = probC countFunc deck c
-
-mostLikelyNGivenC :: CtT a => (Card -> a) -> [Card] -> a -> Int
-mostLikelyNGivenC countFunc deck c = result where
-  nsWithProbs = decorate (\n -> (probCCondN countFunc deck n c) * (probN deck n)) [1..(length deck)]  :: [(Int,Rational)]
-  result = getMax nsWithProbs 0 0
-    where
-      getMax [] maxp maxn = maxn
-      getMax ((n,p):xs) maxp maxn
-        | p > maxp   = getMax xs p n
-        -- | p == maxp  = error "unimplemented decision"
-        | otherwise  = getMax xs maxp maxn
-
-mostLikelyNGivenC_fast :: CtT a => (Card -> a) -> [Card] -> a -> Int
-mostLikelyNGivenC_fast countFunc deck c = result where
-  nsWithProbs = decorate (\n -> (probCCondN_fast countFunc deck n c) * (p n)) [1..(length deck)]  :: [(Int,Double)]
-    where
-      p n = (fromIntegral $ numerator probNfunc) / (fromIntegral $ denominator probNfunc)
-        where probNfunc = probN deck n
-  result = getMax nsWithProbs 0 0
-    where
-      getMax [] maxp maxn = maxn
-      getMax ((n,p):xs) maxp maxn
-        | p > maxp   = getMax xs p n
-        -- | p == maxp  = error "unimplemented decision"
-        | otherwise  = getMax xs maxp maxn
 
 
 -- uses evalRandIO, which uses the IO monad specifically for RNG
@@ -302,24 +283,25 @@ drawNFrom n deck = do
 --         where newWeight = cumulWeight + wt
 --       itFunc _ _ [] = error "Ran out of weight vals. Should not happen in Integral implementation."
 
-weightedFloatDraw :: (Random w, Ord w, Fractional w, Show w) => [(a,w)] -> IO a
-weightedFloatDraw source = do
---  let randRange = (0, foldl (+) 0 $ map fst source) --  :: (w,w) -- sum is implemented w/ foldl anyway
-  let randRange = (0, sum $ map snd source) --  :: (w,w)
-  -- let randRange = foldl (\x -> (+) (fst x)) 0 source
-  --wtThresh <- evalRandIO $ getRandomR randRange  --    :: IO w
-  wtThresh <- getRandomR randRange  --    :: IO w
-  -- putStrLn $ "rng gives " ++ show wtThresh
-  -- check if treshhold is at upper bound?
-  let result = itFunc wtThresh 0 source
-  return result
-    where
-      -- itFunc :: w -> [(w,a)] -> a
-      itFunc wtThresh cumulWeight ((val,wt):ls)
-        | newWeight > wtThresh  = val
-        | otherwise             = itFunc wtThresh newWeight ls
-        where newWeight = cumulWeight + wt
-      itFunc wtTh _ [] = error $ "Ran out of weight vals. Is threshold " ++ show wtTh ++ " above upper bound?"
+-- weightedFloatDraw :: (Random w, Ord w, Fractional w, Show w) => [(a,w)] -> IO a
+-- weightedFloatDraw source = do
+--   let randRange = (0, sum $ map snd source) --  :: (w,w)
+--   --wtThresh <- evalRandIO $ getRandomR randRange  --    :: IO w
+--   wtThresh <- getRandomR randRange  --    :: IO w
+--   -- putStrLn $ "rng gives " ++ show wtThresh
+--   -- check if treshhold is at upper bound?
+--   let result = itFunc wtThresh 0 source
+--   return result
+--     where
+--       -- itFunc :: w -> [(w,a)] -> a
+--       itFunc wtThresh cumulWeight ((val,wt):ls)
+--         | newWeight > wtThresh  = val
+--         | otherwise             = itFunc wtThresh newWeight ls
+--         where newWeight = cumulWeight + wt
+--       itFunc wtTh _ [] = error $ "Ran out of weight vals. Is threshold " ++ show wtTh ++ " above upper bound?"
+
+deckCountFromPlayerCount :: CtT a => [Card] -> (Card -> a) -> a -> a
+deckCountFromPlayerCount deck ctFunc plCt = (foldl (\x y -> x + (ctFunc y)) 0) deck - plCt
 
 getDeckWithCountSet :: CtT a => (Card -> a) -> [a] -> CtSetT -> [Card] -> IO [Card]
 getDeckWithCountSet countFunc possCts ctSet deck = do
@@ -329,34 +311,43 @@ getDeckWithCountSet countFunc possCts ctSet deck = do
   shuffledDeck <- evalRandIO $ shuffleM concatDeck
   return shuffledDeck
 
--- given total number of cards, counting function, desired count, return shuffled deck
---  possibly pass a stack of cards instead of a number of decks
--- getDeckWithNCount :: (Num a, Ord a, MonadRandom m) => Int -> Int -> (Card -> a) -> a -> m [Card]
-getDeckWithCardsAndCount :: CtT a => Int -> [Card] -> (Card -> a) -> a -> IO [Card]
-getDeckWithCardsAndCount nCards deck countFunc nCount = do
-  -- countSet <- weightedIntDraw weightedCountSets
-  countSet <- fromList weightedCountSets :: IO CtSetT
-  getDeckWithCountSet countFunc possCts countSet deck
+-- gets a deck with the given count.  needs to implemented P(N) weighting.
+-- should save possible count sets w/ weights and return an infinite list of such decks
+--  in current state this is very inefficient. should save possible counts w/ weights
+getDeckWithCount :: CtT a => [Card] -> (Card -> a) -> a -> IO [Card]
+getDeckWithCount deck countFunc pCount = do
+  let dCount = deckCountFromPlayerCount deck countFunc pCount
+  let (possCts,weightedCountSets) = possCountSetsWithWeights countFunc dCount deck -- ([a],[(CtSetT,Rational)])
+  let reweightedCountSets = convolveWithPN weightedCountSets :: [(CtSetT,Rational)]
+  countSet <- fromList reweightedCountSets                   :: IO CtSetT
+  getDeckWithCountSet countFunc possCts countSet deck        :: IO [Card]
     where
-      (possCts,weightedCountSets) = possCountSetsWithWeights countFunc nCards nCount deck
+      convolveWithPN    :: [(CtSetT,Rational)] -> [(CtSetT,Rational)]
+      convolveWithPN [] = []
+      convolveWithPN ((ctSet,p):xs)
+        | newp > 0  = (ctSet,newp):(convolveWithPN xs)
+        | otherwise = convolveWithPN xs
+          where newp = probN deck (sum ctSet) * p
 
--- returns a deck with total number of cards randomized uniformly, and the count set
--- not actually be appropriate for generating tables based on a count, because P(N|C) is not typically uniform
-getDeckWithCount :: CtT a => Int -> (Card -> a) -> a -> IO [Card]
-getDeckWithCount nDecks cf count = do
-  putStrLn $ show nsWithWeights
-  nCards <- weightedFloatDraw nsWithWeights            :: IO Int
-  -- nCards <- fromList nsWithWeights                     :: IO Int -- fromList uses rationals
-  getDeckWithCardsAndCount nCards unshuffled cf count  :: IO [Card]
-  -- weightedFloatDraw nsWithWeights >>= (\nCards -> getDeckWithCardsAndCount nCards unshuffled cf count)
+-- gets a deck with the given count.  needs to implemented P(N) weighting.
+-- should save possible count sets w/ weights and return an (in)finite list of such decks
+-- 
+getDecksWithCount :: CtT a => Int -> [Card] -> (Card -> a) -> a -> IO [[Card]]
+getDecksWithCount nShoes deck countFunc pCount = do
+  let dCount = deckCountFromPlayerCount deck countFunc pCount
+  --- need to call this once and then generate decks forever
+  let (possCts,weightedCountSets) = possCountSetsWithWeights countFunc dCount deck -- ([a],[(CtSetT,Rational)])
+  let reweightedCountSets = convolveWithPN weightedCountSets :: [(CtSetT,Rational)]
+  putStrLn "Computing weighted count sets..."
+  replicateM nShoes $ drawDeck deck countFunc possCts reweightedCountSets --  :: IO [Card]
     where
-      unshuffled = concat $ replicate nDecks standardDeck
-      dkSz = length unshuffled                                 :: Int
-      possNs = filter ((0< ) . (probN unshuffled))  [1..dkSz]  :: [Int]
-      -- P(N|C) is proportional to P(C|N)*P(N). Denominator P(C) is a constant (given count).
-      -- real probability would be probNCondC but we can skip the additional computation
-      -- nsWithWeights = decorate (\n -> probCCondN cf unshuffled n count) possNs  :: [(Int,Rational)]
-      -- nsWithWeights = decorate (probNCondC cf unshuffled count) possNs  :: [(Int,Rational)] -- very slow
-      -- the versions using stirlings / log gamma are about 3 times faster
-      nsWithWeights = decorate (\n -> probCCondN_fast cf unshuffled n count) possNs  :: [(Int,Double)]
-
+      convolveWithPN    :: [(CtSetT,Rational)] -> [(CtSetT,Rational)]
+      convolveWithPN [] = []
+      convolveWithPN ((ctSet,p):xs)
+        | newp > 0  = (ctSet,newp):(convolveWithPN xs)
+        | otherwise = convolveWithPN xs
+          where newp = probN deck (sum ctSet) * p
+      drawDeck deck countFunc possCts reweightedCountSets = do
+        putStrLn "Getting deck with count set..."
+        countSet <- fromList reweightedCountSets                   :: IO CtSetT
+        getDeckWithCountSet countFunc possCts countSet deck        :: IO [Card]

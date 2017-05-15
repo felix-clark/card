@@ -4,11 +4,11 @@ import Deck
 import DealerResult
 import Control.Monad.Random (evalRandIO)
 
-doNLoops :: Monad m => Int -> (a -> b -> m b) -> a -> b -> m b
-doNLoops 0 _ _ hist = return hist
-doNLoops n f nDecks hist = do
-  newHist <- f nDecks hist
-  doNLoops (n-1) f nDecks newHist
+doNLoops :: Monad m => Int -> (a -> m a) -> a -> m a
+doNLoops 0 _ hist = return hist
+doNLoops n f hist = do
+  newHist <- f hist
+  doNLoops (n-1) f newHist
 
 fillHistWithShoe :: Int -> TrialHist -> IO TrialHist
 fillHistWithShoe nDecks hist = do
@@ -23,5 +23,5 @@ fillHistWithShoe nDecks hist = do
 
 main :: IO ()
 main = do
-  hist <- doNLoops 2048 fillHistWithShoe 8 emptyTrialHist   :: IO TrialHist
+  hist <- doNLoops 2048 (fillHistWithShoe 8) emptyTrialHist   :: IO TrialHist
   printTrialHist hist
