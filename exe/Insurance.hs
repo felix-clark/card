@@ -13,7 +13,9 @@ import Numeric (showFFloat)
 tensWithCount :: (CtT a) => Int -> Int -> (Card -> a) -> a -> IO Int
 tensWithCount nReps nDecks countFunc count = do
   let unshuffledDeck = concat $ replicate nDecks standardDeck            :: [Card]
-  evalDecks <- getDecksWithCount nReps unshuffledDeck countFunc count   :: IO [[Card]]
+  (_,deckRmAce) <- drawFrom [(Ace ==) . rank] unshuffledDeck
+  -- drawing a card from the deck will lead to a slightly shifted P(N) distribution internally, but that's probably less of a deal compared to the Ace missing. eventually should move to a more generic function
+  evalDecks <- getDecksWithCount nReps deckRmAce countFunc count   :: IO [[Card]]
   return . length $ filter ( (10 == ) . cardCount . head) evalDecks
 
 main :: IO ()
@@ -24,9 +26,11 @@ main = do
     --- number of reps should be ~ (2/error)^2 where error is desired std error of mean
     -- so e.g. for precision to 0.1 (0.01), need 400 (160 000) reps
     nReps = 2048
+    -- nReps = 8*2048
     processWithCount :: Int -> IO ()
     processWithCount count = do
       nBJs <- tensWithCount nReps 6 countKO count
+      -- nBJs <- tensWithCount nReps 1 countKO count
       putStr $ "with count of " ++ show count ++ ", EV is "
       -- insurance pays 2 to 1, so ROI is 3 on BJ and 0 otherwise
       putStrLn $ showFFloat (Just 3) (ev nBJs) " \177 " ++ showFFloat (Just 3) (meanErr nBJs) ""

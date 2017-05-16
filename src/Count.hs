@@ -62,6 +62,7 @@ countKO (Card cr _)
 ircREKO :: Int -> Int
 ircREKO 1 = -1
 ircREKO 2 = -5
+ircREKO 3 = -9  --- inferred because insurance turning point appears to be at 11
 ircREKO 4 = -12
 ircREKO 5 = -16 --- inferred
 ircREKO 6 = -20
@@ -212,16 +213,20 @@ possCountSetsWithWeights countFunc nCount deck = result where
 
 -- the probability of having a deck w/ length N is effectively set by the casino.
 -- most casinos kick the shoe when it's down to 25% of its maximum length
---  could consider "softening" the transition
+--  the transition is softened slightly
 probN :: [Card] -> Int -> Rational
-probN deck n = (normFact *) . fromIntegral $ likeF n where
-  normFact = (%) 1 $ fromIntegral . sum $ map likeF [1..dkSz]
+probN deck n = (normFact *) $ likeF n where
+  normFact = 1 / (sum $ map likeF [1..dkSz])
   likeF = likeN deck
   likeN deck n
-    | n <= dkSz `div` 4  = 0
-    | n >  dkSz          = 0
-    | otherwise          = 1
+    | n >  dkSz       = 0
+    | n <  dkQ - 1    = 0
+    | n == dkQ - 1    = 1 % 4
+    | n == dkQ        = 1 % 2
+    | n == dkQ + 1    = 3 % 4
+    | otherwise       = 1
   dkSz = length deck
+  dkQ = dkSz `div` 4
 
 -- P(C|N) = L(N|C) / sum_C L(N|C)
 -- the form of this computation is robust in that is doesn't rely on P(N).
@@ -235,28 +240,10 @@ probCCondN countFunc deck n c = result where
     where
       possCtSetsUnfiltered = possCountSetsFromMax ctMaxes
   possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
-  foldFunc = (+) . wFunc                               :: CtSetT -> Rational -> Rational
+  foldFunc = (+) . wFunc                          :: CtSetT -> Rational -> Rational
     where
       wFunc = weightFunc ctMaxes                  :: CtSetT -> Rational -- divides by Nmax choose N
-  result = foldr foldFunc 0 possCtSetsWithNC           :: Rational  -- L(C|N)
-
--- could make this slightly faster by using a weight function w/out dividing by Nmax choose N until the end
---  that should only speed up by 25% or so
--- probCCondN_fast :: CtT a => (Card -> a) -> [Card] -> Int -> a -> Double
--- probCCondN_fast countFunc deck n c = result where
---   possCtsMax = possCountsWithMax countFunc deck   -- :: [(a,Int)]
---   (possCts,ctMaxes) = unzip possCtsMax
---   possCtSetsWithN = filter ((n ==) . sum) possCtSetsUnfiltered :: [CtSetT]
---     where
---       possCtSetsUnfiltered = possCountSetsFromMax ctMaxes
---   possCtSetsWithNC = filter ((c ==) . (countResult possCts)) possCtSetsWithN     :: [CtSetT]
---   foldFunc = (+) . wFunc                                  :: CtSetT -> Double -> Double
---     where
---       wFunc = weightFunc_stirling ctMaxes                 :: CtSetT -> Double
---   likeCAndN = foldr foldFunc 0 possCtSetsWithNC           :: Double -- L(C|N)
---   -- likeN  = foldr foldFunc 0 possCtSetsWithN               :: Double -- sum_N L(C|N)
---   likeN  = choose_stirling (fromIntegral $ length deck) (fromIntegral n)    :: Double -- sum_N L(C|N)
---   result = likeCAndN / likeN                              :: Double
+  result = foldr foldFunc 0 possCtSetsWithNC      :: Rational  -- L(C|N)
 
 
 -- probability of C, given P(N)
@@ -285,6 +272,21 @@ drawNFrom :: Int -> [a] -> IO [a]
 drawNFrom n deck = do
   shuffled <- evalRandIO $ shuffleM deck
   return $ take n shuffled
+
+-- given a list of boolean functions on cards, draw randomly 1 card satisfying that function and return the rest, shuffled as well
+drawFrom :: [a -> Bool] -> [a] -> IO ([a],[a])
+drawFrom funcList deck = do
+  iterFunc funcList [] deck
+  where
+    iterFunc [] drawnList remainingDeck = do
+      shuffledDeck <- shuffleM remainingDeck -- we actually might not really need to do this internally, can always do it externally. perhaps its safer for now to leave it here so we don't incur a bias.
+      return (drawnList,shuffledDeck)  -- :: IO ([a],[a])
+    iterFunc (f:fs) drawnList remainingDeck = do
+      let (pass,nopass) = partition f remainingDeck
+      (nc:remain) <- shuffleM pass
+      let newDeck = remain ++ nopass
+      iterFunc fs (nc:drawnList) newDeck
+      
 
 -- fromList basically has the functionality of these weightedDraw functions
 -- get a random element given the weights, using the global random number generator
@@ -326,7 +328,7 @@ deckCountFromPlayerCount deck ctFunc plCt = (foldl (\x y -> x + (ctFunc y)) 0) d
 
 getDeckWithCountSet :: CtT a => (Card -> a) -> [a] -> CtSetT -> [Card] -> IO [Card]
 getDeckWithCountSet countFunc possCts ctSet deck = do
-  -- possCts = possCounts countFunc deck  -- :: [a]  -- typically [-1,0,1]
+  -- possCts = possCounts countFunc deck  -- :: [a]  -- typically [-1,0,1] -- passed in to save time
   sortedDeck <- sequence [ drawNFrom numCts $ filter ((ct == ) . countFunc) deck | (ct,numCts) <- zip possCts ctSet]  :: IO [[Card]]
   let concatDeck = concat sortedDeck  :: [Card]
   shuffledDeck <- evalRandIO $ shuffleM concatDeck
