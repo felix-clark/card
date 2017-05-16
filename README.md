@@ -13,6 +13,12 @@ Playing card library / engines written for the author's Haskell practice. Plan t
 ### Setup instructions ###
 
 * stack build
-* stack install might be necessary
-* stack exec -- <executable>
+* stack install (might be necessary)
+
+To analyze insurance probabilities for given counts of the knockout (KO) counting system, run e.g.
+   (nominal turnaround point for 6 deck is at 22)
+stack exec -- insurance 0 20 22 24
+
+To generate (poorly populated) dealer bust rates, do similarly
+stack exec -- dealer-bust 0 10 20 30
 
