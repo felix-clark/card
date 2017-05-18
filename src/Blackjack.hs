@@ -101,15 +101,13 @@ data TableState = PlayerTurn | DealerTurn | Done
 printTable :: Table -> IO ()
 printTable table = do
   putStrLn $ "Dealer: " ++ d
-  putStrLn $ "Player: " ++ p
+  putStrLn $ ("Player: " ++) $ show $ playerHand table
   putStrLn $ "Deck: " ++ bl ++ "  (" ++ show(length(theDeck)) ++ ")"
   where d = case st of
           -- PlayerTurn -> bl ++ " " ++ (concat $ show <$> tail(dealerHand table)) :: String
           PlayerTurn -> bl ++ " " ++ (show . head $ dealerHand table) :: String
-          DealerTurn -> concat $ show <$> dealerHand table :: String
+          DealerTurn -> show $ dealerHand table :: String
         st = state table
-        p =  concat $ show <$> playerHand table :: String
-        dk = concat $ show <$> theDeck :: String
         bl = [chr 127136]
         theDeck = deck table
 

@@ -59,15 +59,22 @@ countKO (Card cr _)
 
 -- initial running count for reKO counting system
 -- not quite the same as the IRC for KO systems
-ircREKO :: Int -> Int
-ircREKO 1 = -1
-ircREKO 2 = -5
-ircREKO 3 = -9  --- inferred because insurance turning point appears to be at 11
-ircREKO 4 = -12
-ircREKO 5 = -16 --- inferred
-ircREKO 6 = -20
-ircREKO 8 = -27
-ircREKO _ = error "unimplemented starting count for REKO"
+ircKO :: Int -> Int
+ircKO nDecks = 4*(1-nDecks)
+
+-- this is the point above which we can expect to have a positive EV, on average.
+-- realistically this should be a bit lower earlier in the deck, and a bit higher later in the deck.
+keyKO :: Int -> Int
+keyKO 1 = 2
+keyKO 2 = 1
+keyKO 4 = -1
+keyKO 6 = -4
+keyKO 8 = -6
+keyKO x = error $ "KO key count not known for deck size " ++ show x
+
+-- for all deck sizes the pivot point is +4 in the KO system
+pivotKO :: Int
+pivotKO = 4
 
 countFELT :: Card -> Int
 countFELT (Card cr _)
