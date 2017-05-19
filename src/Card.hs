@@ -33,18 +33,17 @@ instance Read Rank where
                                rmap 'A' = Ace
                                rmap x = toEnum ((read [x])-2)
   readsPrec _ [] = []
-  -- ReadS [a] = String -> [(a,String)]
-  -- readList :: ReadS [a]   == String -> [(a,String)]
-  -- this needs a real implementation. needs to map "8T3" to [([Eight,Ten,Three],"")]
-  readList (r:rs) = readIter $ read [r] :: [([Rank],String)]
+  -- maps "8T3" to [([Eight,Ten,Three],"")]
+  readList x = readFiltered $ filter (' ' /= ) x
     where
-      readIter :: [([Rank],String)] -> [([Rank],String)]
-      readIter [(rh,"")] = [(rh,"")]
-      readIter [(rh,remain)] = [(rh',remain')]
+      readFiltered [] = []
+      readFiltered (r:rs) = combFunc (readsPrec 0 [r]) $ readFiltered rs --  :: [([Rank],String)]
         where
-          rh' = rh ++ nr
-          [(nr,remain')] = readList remain
-      readIter [] = error "shouldn't get to here?"
+          combFunc :: [(Rank,String)] -> [([Rank],String)] -> [([Rank],String)]
+          combFunc [] _ = []
+          combFunc [(r,str)] [] = [([r],str)]
+          combFunc [(r,str)] [(rs,str')] = [((r:rs),str++str')]
+          combFunc _ _ = error "shouldn't fall to here"
 
   
 -- a Card is a combination of Rank and Suit
