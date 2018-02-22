@@ -4,11 +4,6 @@ module Blackjack where
 import Card
 import Deck
 
--- for shuffleM
-import Control.Monad
-import Control.Monad.Random
-import System.Random.Shuffle
-
 import Data.Char (chr)
 -- import Data.List (intercalate) -- concat
 
@@ -32,7 +27,6 @@ cardCount (Card cr   _) = rankCount cr
 
 -- returns the hard count, i.e. the count without including soft aces
 hardCount :: Hand -> Int
--- hardCount hand = sum $ map cardCount hand
 hardCount = sum . map cardCount
 
 numAces :: Hand -> Int
